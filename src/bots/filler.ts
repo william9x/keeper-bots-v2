@@ -1350,15 +1350,18 @@ export class FillerBot extends TxThreaded implements Bot {
 			this.bundleSender?.strategy === 'jito-only' ||
 			this.bundleSender?.strategy === 'hybrid'
 		) {
-			const slotsUntilNextLeader = this.bundleSender?.slotsUntilNextLeader();
-			if (slotsUntilNextLeader !== undefined) {
-				this.bundleSender.sendTransactions(
-					[tx],
-					`(fillTxId: ${metadata})`,
-					txSig,
-					false
-				);
+			if (
+				this.globalConfig.onlySendDuringJitoLeader &&
+				this.bundleSender?.slotsUntilNextLeader() === undefined
+			) {
+				return;
 			}
+			this.bundleSender.sendTransactions(
+				[tx],
+				`(fillTxId: ${metadata})`,
+				txSig,
+				false
+			);
 		}
 	}
 

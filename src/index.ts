@@ -1,66 +1,65 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { program, Option } from 'commander';
+import { Option, program } from 'commander';
 import * as http from 'http';
 
 import {
-	Connection,
 	Commitment,
+	ConfirmOptions,
+	Connection,
 	Keypair,
 	PublicKey,
 	TransactionVersion,
-	ConfirmOptions,
 } from '@solana/web3.js';
 
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import {
-	BulkAccountLoader,
-	DriftClient,
-	initialize,
-	EventSubscriber,
-	SlotSubscriber,
-	QUOTE_PRECISION,
-	SpotMarkets,
-	BN,
-	TokenFaucet,
-	DriftClientSubscriptionConfig,
-	LogProviderConfig,
-	FastSingleTxSender,
-	UserMap,
-	Wallet,
-	RetryTxSender,
-	PriorityFeeSubscriber,
-	PriorityFeeMethod,
-	HeliusPriorityFeeResponse,
-	HeliusPriorityLevel,
+	AuctionSubscriber,
 	AverageOverSlotsStrategy,
 	BlockhashSubscriber,
-	WhileValidTxSender,
-	PerpMarkets,
+	BN,
+	BulkAccountLoader,
 	configs,
-	AuctionSubscriber,
+	DriftClient,
+	DriftClientSubscriptionConfig,
+	EventSubscriber,
+	FastSingleTxSender,
+	HeliusPriorityFeeResponse,
+	HeliusPriorityLevel,
+	initialize,
+	LogProviderConfig,
+	PerpMarkets,
+	PriorityFeeMethod,
+	PriorityFeeSubscriber,
+	promiseTimeout,
+	QUOTE_PRECISION,
+	RetryTxSender,
+	SlotSubscriber,
+	SpotMarkets,
 	SwiftOrderSubscriber,
+	TokenFaucet,
+	UserMap,
+	Wallet,
+	WhileValidTxSender,
 } from '@drift-labs/sdk';
-import { promiseTimeout } from '@drift-labs/sdk';
 
 import { logger, setLogLevel } from './logger';
-import { constants } from './types';
+import { Bot, constants } from './types';
 import { FillerBot } from './bots/filler';
 import { SpotFillerBot } from './bots/spotFiller';
 import { TriggerBot } from './bots/trigger';
 import { LiquidatorBot } from './bots/liquidator';
 import { FloatingPerpMakerBot } from './bots/floatingMaker';
-import { Bot } from './types';
 import { IFRevenueSettlerBot } from './bots/ifRevenueSettler';
 import { UserPnlSettlerBot } from './bots/userPnlSettler';
 import { UserLpSettlerBot } from './bots/userLpSettler';
 import { UserIdleFlipperBot } from './bots/userIdleFlipper';
 import {
+	getMarketsAndOracleInfosToLoad,
 	getOrCreateAssociatedTokenAccount,
-	sleepMs,
-	TOKEN_FAUCET_PROGRAM_ID,
 	getWallet,
 	loadKeypair,
-	getMarketsAndOracleInfosToLoad,
+	sleepMs,
+	TOKEN_FAUCET_PROGRAM_ID,
 } from './utils';
 import {
 	Config,
@@ -507,7 +506,11 @@ const runBot = async () => {
 	let needCheckDriftUser = false;
 	let needForceCollateral = !!config.global.forceDeposit;
 	let needUserMapSubscribe = false;
-	const userMapConnection = new Connection(endpoint);
+	const userMapConnection = new Connection(endpoint, {
+		wsEndpoint: wsEndpoint,
+		commitment: stateCommitment,
+	});
+
 	const userMap = new UserMap({
 		driftClient,
 		connection: userMapConnection,
