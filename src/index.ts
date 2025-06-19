@@ -485,6 +485,7 @@ const runBot = async () => {
 		jitoAuthKeypair = loadKeypair(privateKey);
 
 		bundleSender = new BundleSender(
+			config.global,
 			connection,
 			jitoBlockEngineUrl,
 			jitoAuthKeypair,

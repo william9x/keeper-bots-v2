@@ -1,31 +1,31 @@
 import {
-	DriftClient,
-	SpotMarketAccount,
-	MakerInfo,
-	isVariant,
+	BlockhashSubscriber,
+	BN,
+	ClockSubscriber,
+	DataAndSlot,
 	DLOB,
-	NodeToFill,
-	UserMap,
-	UserStatsMap,
-	MarketType,
 	DLOBNode,
 	DLOBSubscriber,
-	PhoenixSubscriber,
-	BN,
-	PhoenixV1FulfillmentConfigAccount,
-	TEN,
-	NodeToTrigger,
-	OrderSubscriber,
-	UserAccount,
-	PriorityFeeSubscriber,
-	DataAndSlot,
-	BlockhashSubscriber,
+	DriftClient,
+	isVariant,
 	JupiterClient,
-	ClockSubscriber,
+	MakerInfo,
+	MarketType,
+	NodeToFill,
+	NodeToTrigger,
 	OpenbookV2FulfillmentConfigAccount,
 	OpenbookV2Subscriber,
+	OrderSubscriber,
+	PhoenixSubscriber,
+	PhoenixV1FulfillmentConfigAccount,
+	PriorityFeeSubscriber,
+	SpotMarketAccount,
+	TEN,
+	UserAccount,
+	UserMap,
+	UserStatsMap,
 } from '@drift-labs/sdk';
-import { Mutex, tryAcquire, E_ALREADY_LOCKED } from 'async-mutex';
+import { E_ALREADY_LOCKED, Mutex, tryAcquire } from 'async-mutex';
 
 import {
 	AddressLookupTableAccount,
@@ -52,9 +52,9 @@ import {
 	CounterValue,
 	GaugeValue,
 	HistogramValue,
+	metricAttrFromUserAccount,
 	Metrics,
 	RuntimeSpec,
-	metricAttrFromUserAccount,
 } from '../metrics';
 import { webhookMessage } from '../webhook';
 import { getErrorCode } from '../error';
@@ -82,7 +82,7 @@ import {
 	validMinimumGasAmount,
 	validRebalanceSettledPnlThreshold,
 } from '../utils';
-import { JITO_METRIC_TYPES, BundleSender } from '../bundleSender';
+import { BundleSender, JITO_METRIC_TYPES } from '../bundleSender';
 import {
 	CACHED_BLOCKHASH_OFFSET,
 	CONFIRM_TX_INTERVAL_MS,
@@ -1524,15 +1524,18 @@ export class SpotFillerBot implements Bot {
 			this.bundleSender?.strategy === 'jito-only' ||
 			this.bundleSender?.strategy === 'hybrid'
 		) {
-			const slotsUntilNextLeader = this.bundleSender?.slotsUntilNextLeader();
-			if (slotsUntilNextLeader !== undefined) {
-				this.bundleSender.sendTransactions(
-					[tx],
-					`(fillTxId: ${metadata})`,
-					txSig,
-					false
-				);
+			if (
+				this.globalConfig.onlySendDuringJitoLeader &&
+				this.bundleSender?.slotsUntilNextLeader() === undefined
+			) {
+				return;
 			}
+			this.bundleSender.sendTransactions(
+				[tx],
+				`(fillTxId: ${metadata})`,
+				txSig,
+				false
+			);
 		}
 	}
 

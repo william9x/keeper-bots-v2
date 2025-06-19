@@ -19,6 +19,7 @@ import { LRUCache } from 'lru-cache';
 import WebSocket from 'ws';
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
 import { sleepMs } from './utils';
+import { GlobalConfig } from './config';
 
 export const jitoBundlePriceEndpoint =
 	'wss://bundles.jito.wtf/api/v1/bundles/tip_stream';
@@ -78,6 +79,8 @@ const initBundleStats: BundleStats = {
 };
 
 export class BundleSender {
+	private globalConfig: GlobalConfig;
+
 	private ws: WebSocket | undefined;
 	private searcherClient: SearcherClient | undefined;
 	private leaderScheduleIntervalId: NodeJS.Timeout | undefined;
@@ -117,12 +120,12 @@ export class BundleSender {
 	private bundleStats: BundleStats = initBundleStats;
 
 	constructor(
+		globalConfig: GlobalConfig,
 		private connection: Connection,
 		private jitoBlockEngineUrl: string,
 		private jitoAuthKeypair: Keypair,
 		public tipPayerKeypair: Keypair,
 		private slotSubscriber: SlotSubscriber,
-
 		/// tip algo params
 		public strategy: 'non-jito-only' | 'jito-only' | 'hybrid' = 'jito-only',
 		private minBundleTip = 10_000, // cant be lower than this
@@ -130,6 +133,7 @@ export class BundleSender {
 		private maxFailBundleCount = 100, // at 100 failed txs, can expect tip to become maxBundleTip
 		private tipMultiplier = 3 // bigger == more superlinear, delay the ramp up to prevent overpaying too soon
 	) {
+		this.globalConfig = globalConfig;
 		this.bundleIdToTx = new LRUCache({
 			max: 500,
 		});
@@ -146,15 +150,17 @@ export class BundleSender {
 	}
 
 	connected(): boolean {
-		return (
+		const isConnected =
 			// tip stream connected
 			this.ws !== undefined &&
 			this.ws.readyState === WebSocket.OPEN &&
 			// searcher client connected
-			this.searcherClient !== undefined &&
+			this.searcherClient !== undefined;
+		if (this.globalConfig.onlySendDuringJitoLeader) {
 			// next jito leader is set
-			this.nextJitoLeader !== undefined
-		);
+			return isConnected && this.nextJitoLeader !== undefined;
+		}
+		return isConnected;
 	}
 
 	getBundleStats(): BundleStats {
@@ -232,6 +238,7 @@ export class BundleSender {
 			}
 		}
 	}
+
 	private connectJitoTipStream() {
 		if (this.ws !== undefined) {
 			logger.warn(
@@ -386,14 +393,17 @@ export class BundleSender {
 		await this.connectSearcherClient();
 		this.connectJitoTipStream();
 
-		this.slotSubscriber.eventEmitter.on(
-			'newSlot',
-			this.onSlotSubscriberSlot.bind(this)
-		);
-		this.leaderScheduleIntervalId = setInterval(
-			this.updateJitoLeaderSchedule.bind(this),
-			1000
-		);
+		if (this.globalConfig.onlySendDuringJitoLeader) {
+			this.slotSubscriber.eventEmitter.on(
+				'newSlot',
+				this.onSlotSubscriberSlot.bind(this)
+			);
+			this.leaderScheduleIntervalId = setInterval(
+				this.updateJitoLeaderSchedule.bind(this),
+				1000
+			);
+		}
+
 		this.checkSentTxsIntervalId = setInterval(
 			this.checkSentTxs.bind(this),
 			10000
