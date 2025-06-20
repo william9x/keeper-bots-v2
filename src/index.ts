@@ -67,6 +67,7 @@ import {SwitchboardCrankerBot} from './bots/switchboardCranker';
 import {PythLazerCrankerBot} from './bots/pythLazerCranker';
 import {JitMaker} from './bots/jitMaker';
 import {JitProxyClient, JitterSniper} from '@drift-labs/jit-proxy/lib';
+import {GrpcConfigs} from '@drift-labs/sdk/src/accounts/types';
 
 require('dotenv').config();
 const commitHash = process.env.COMMIT ?? '';
@@ -252,16 +253,23 @@ const runBot = async () => {
 	let lastBulkAccountLoaderSlot: number | undefined;
 	let accountSubscription: DriftClientSubscriptionConfig = {
 		type: 'websocket',
-		resubTimeoutMs: config.global.resubTimeoutMs,
+		resubTimeoutMs: config.global.resubTimeoutMs || 30_000,
 	};
 	let logProviderConfig: LogProviderConfig = {
 		type: 'websocket',
+		resubTimeoutMs: config.global.resubTimeoutMs || 30_000,
 	};
 	let userMapSubscriptionConfig:
 		| {
 				type: 'polling';
 				frequency: number;
 				commitment?: Commitment;
+		  }
+		| {
+				type: 'grpc';
+				grpcConfigs: GrpcConfigs;
+				resubTimeoutMs?: number;
+				logResubMessages?: boolean;
 		  }
 		| {
 				type: 'websocket';
@@ -307,12 +315,18 @@ const runBot = async () => {
 				endpoint: config.global.geyserEndpoint || '',
 				token: config.global.geyserToken || '',
 			},
-			resubTimeoutMs: config.global.resubTimeoutMs,
 		};
 		logProviderConfig = {
 			type: 'events-server',
 			url: config.global.geyserEndpoint || '',
 		};
+		userMapSubscriptionConfig = {
+			type: 'grpc',
+			grpcConfigs: {
+				endpoint: config.global.geyserEndpoint || '',
+				token: config.global.geyserToken || '',
+			},
+		}
 	}
 
 	const opts: ConfirmOptions = {

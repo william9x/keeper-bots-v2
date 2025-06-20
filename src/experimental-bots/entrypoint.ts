@@ -216,7 +216,7 @@ const runBot = async () => {
 
 	const accountSubscription: DriftClientSubscriptionConfig = {
 		type: 'websocket',
-		resubTimeoutMs: config.global.resubTimeoutMs,
+		resubTimeoutMs: config.global.resubTimeoutMs || 30_000,
 	};
 
 	// Send unsubscribed subscription to the bot
