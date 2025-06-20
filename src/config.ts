@@ -206,6 +206,10 @@ export interface GlobalConfig {
 	eventSubscriberPollingInterval: number;
 	bulkAccountLoaderPollingInterval: number;
 
+	geyser?: boolean;
+	geyserEndpoint?: string;
+	geyserToken?: string;
+
 	useJito?: boolean;
 	jitoStrategy?: 'jito-only' | 'non-jito-only' | 'hybrid';
 	jitoBlockEngineUrl?: string;

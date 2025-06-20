@@ -1,17 +1,10 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-import { Option, program } from 'commander';
+import {Option, program} from 'commander';
 import * as http from 'http';
 
-import {
-	Commitment,
-	ConfirmOptions,
-	Connection,
-	Keypair,
-	PublicKey,
-	TransactionVersion,
-} from '@solana/web3.js';
+import {Commitment, ConfirmOptions, Connection, Keypair, PublicKey, TransactionVersion,} from '@solana/web3.js';
 
-import { getAssociatedTokenAddress } from '@solana/spl-token';
+import {getAssociatedTokenAddress} from '@solana/spl-token';
 import {
 	AuctionSubscriber,
 	AverageOverSlotsStrategy,
@@ -42,17 +35,17 @@ import {
 	WhileValidTxSender,
 } from '@drift-labs/sdk';
 
-import { logger, setLogLevel } from './logger';
-import { Bot, constants } from './types';
-import { FillerBot } from './bots/filler';
-import { SpotFillerBot } from './bots/spotFiller';
-import { TriggerBot } from './bots/trigger';
-import { LiquidatorBot } from './bots/liquidator';
-import { FloatingPerpMakerBot } from './bots/floatingMaker';
-import { IFRevenueSettlerBot } from './bots/ifRevenueSettler';
-import { UserPnlSettlerBot } from './bots/userPnlSettler';
-import { UserLpSettlerBot } from './bots/userLpSettler';
-import { UserIdleFlipperBot } from './bots/userIdleFlipper';
+import {logger, setLogLevel} from './logger';
+import {Bot, constants} from './types';
+import {FillerBot} from './bots/filler';
+import {SpotFillerBot} from './bots/spotFiller';
+import {TriggerBot} from './bots/trigger';
+import {LiquidatorBot} from './bots/liquidator';
+import {FloatingPerpMakerBot} from './bots/floatingMaker';
+import {IFRevenueSettlerBot} from './bots/ifRevenueSettler';
+import {UserPnlSettlerBot} from './bots/userPnlSettler';
+import {UserLpSettlerBot} from './bots/userLpSettler';
+import {UserIdleFlipperBot} from './bots/userIdleFlipper';
 import {
 	getMarketsAndOracleInfosToLoad,
 	getOrCreateAssociatedTokenAccount,
@@ -61,24 +54,19 @@ import {
 	sleepMs,
 	TOKEN_FAUCET_PROGRAM_ID,
 } from './utils';
-import {
-	Config,
-	configHasBot,
-	loadConfigFromFile,
-	loadConfigFromOpts,
-} from './config';
-import { FundingRateUpdaterBot } from './bots/fundingRateUpdater';
-import { FillerLiteBot } from './bots/fillerLite';
-import { MakerBidAskTwapCrank } from './bots/makerBidAskTwapCrank';
-import { BundleSender } from './bundleSender';
-import { DriftStateWatcher, StateChecks } from './driftStateWatcher';
-import { webhookMessage } from './webhook';
-import { PythPriceFeedSubscriber } from './pythPriceFeedSubscriber';
-import { PythCrankerBot } from './bots/pythCranker';
-import { SwitchboardCrankerBot } from './bots/switchboardCranker';
-import { PythLazerCrankerBot } from './bots/pythLazerCranker';
-import { JitMaker } from './bots/jitMaker';
-import { JitProxyClient, JitterSniper } from '@drift-labs/jit-proxy/lib';
+import {Config, configHasBot, loadConfigFromFile, loadConfigFromOpts,} from './config';
+import {FundingRateUpdaterBot} from './bots/fundingRateUpdater';
+import {FillerLiteBot} from './bots/fillerLite';
+import {MakerBidAskTwapCrank} from './bots/makerBidAskTwapCrank';
+import {BundleSender} from './bundleSender';
+import {DriftStateWatcher, StateChecks} from './driftStateWatcher';
+import {webhookMessage} from './webhook';
+import {PythPriceFeedSubscriber} from './pythPriceFeedSubscriber';
+import {PythCrankerBot} from './bots/pythCranker';
+import {SwitchboardCrankerBot} from './bots/switchboardCranker';
+import {PythLazerCrankerBot} from './bots/pythLazerCranker';
+import {JitMaker} from './bots/jitMaker';
+import {JitProxyClient, JitterSniper} from '@drift-labs/jit-proxy/lib';
 
 require('dotenv').config();
 const commitHash = process.env.COMMIT ?? '';
@@ -309,6 +297,21 @@ const runBot = async () => {
 			type: 'polling',
 			frequency: 15_000, // reasonable refresh time since userMap calls getProgramAccounts to update.
 			commitment: stateCommitment,
+		};
+	}
+
+	if (config.global.geyser) {
+		accountSubscription = {
+			type: 'grpc',
+			grpcConfigs: {
+				endpoint: config.global.geyserEndpoint || '',
+				token: config.global.geyserToken || '',
+			},
+			resubTimeoutMs: config.global.resubTimeoutMs,
+		};
+		logProviderConfig = {
+			type: 'events-server',
+			url: config.global.geyserEndpoint || '',
 		};
 	}
 
