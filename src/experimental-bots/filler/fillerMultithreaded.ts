@@ -107,7 +107,7 @@ import { ChildProcess } from 'child_process';
 import { PythPriceFeedSubscriber } from 'src/pythPriceFeedSubscriber';
 import { PythLazerSubscriber } from '../../pythLazerSubscriber';
 import path from 'path';
-import { RedisClient, RedisClientPrefix } from '@drift/common/clients';
+// import { RedisClient, RedisClientPrefix } from '@drift/common/clients';
 
 const logPrefix = '[Filler]';
 export type MakerNodeMap = Map<string, DLOBNode[]>;
@@ -384,34 +384,53 @@ export class FillerMultithreaded {
 		});
 
 		// Pyth lazer: remember to remove devnet guard
-		if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
-			throw new Error('Missing lazerEndpoints or lazerToken in global config');
-		}
+		if (this.globalConfig.driftEnv == 'devnet') {
+			if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
+				throw new Error('Missing lazerEndpoint or lazerToken in global config');
+			}
 
-		const markets = PerpMarkets[this.globalConfig.driftEnv!]
-			.filter((market) =>
-				this.marketIndexesFlattened.includes(market.marketIndex)
-			)
-			.filter((market) => market.pythLazerId !== undefined);
-		const pythLazerIds = markets.map((m) => m.pythLazerId!);
-		if (pythLazerIds.length > 0) {
-			const chunkSize = config.pythLazerChunkSize || 2;
-			const pythLazerIdsChunks = chunks(pythLazerIds, chunkSize);
+			const markets = PerpMarkets[this.globalConfig.driftEnv!].filter(
+				(market) => market.pythLazerId !== undefined
+			);
+			const pythLazerIds = markets.map((m) => m.pythLazerId!);
+			const pythLazerIdsChunks = chunks(pythLazerIds, 5);
 			this.pythLazerSubscriber = new PythLazerSubscriber(
 				this.globalConfig.lazerEndpoints,
 				this.globalConfig.lazerToken,
 				pythLazerIdsChunks,
-				this.globalConfig.driftEnv,
-				new RedisClient({
-					prefix: RedisClientPrefix.DLOB,
-				}),
-				this.globalConfig.lazerHttpEndpoints
-			);
-		} else {
-			logger.info(
-				'No pyth lazer ids found, skipping initting PythLazerSubscriber'
+				this.globalConfig.driftEnv
 			);
 		}
+
+		// Pyth lazer: remember to remove devnet guard
+		// if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
+		// 	throw new Error('Missing lazerEndpoints or lazerToken in global config');
+		// }
+
+		// const markets = PerpMarkets[this.globalConfig.driftEnv!]
+		// 	.filter((market) =>
+		// 		this.marketIndexesFlattened.includes(market.marketIndex)
+		// 	)
+		// 	.filter((market) => market.pythLazerId !== undefined);
+		// const pythLazerIds = markets.map((m) => m.pythLazerId!);
+		// if (pythLazerIds.length > 0) {
+		// 	const chunkSize = config.pythLazerChunkSize || 2;
+		// 	const pythLazerIdsChunks = chunks(pythLazerIds, chunkSize);
+		// 	this.pythLazerSubscriber = new PythLazerSubscriber(
+		// 		this.globalConfig.lazerEndpoints,
+		// 		this.globalConfig.lazerToken,
+		// 		pythLazerIdsChunks,
+		// 		this.globalConfig.driftEnv,
+		// 		new RedisClient({
+		// 			prefix: RedisClientPrefix.DLOB,
+		// 		}),
+		// 		this.globalConfig.lazerHttpEndpoints
+		// 	);
+		// } else {
+		// 	logger.info(
+		// 		'No pyth lazer ids found, skipping initting PythLazerSubscriber'
+		// 	);
+		// }
 	}
 
 	async init() {
@@ -976,8 +995,7 @@ export class FillerMultithreaded {
 			this.confirmLoopRateLimitTs + CONFIRM_TX_RATE_LIMIT_BACKOFF_MS;
 		if (Date.now() < nextTimeCanRun) {
 			logger.warn(
-				`Skipping confirm loop due to rate limit, next run in ${
-					nextTimeCanRun - Date.now()
+				`Skipping confirm loop due to rate limit, next run in ${nextTimeCanRun - Date.now()
 				} ms`
 			);
 			return;
@@ -1009,8 +1027,7 @@ export class FillerMultithreaded {
 					const fillTxId = txConfirmationInfo[1].fillTxId;
 					if (txResp === null) {
 						logger.info(
-							`Tx not found, (fillTxId: ${fillTxId}) (txType: ${txType}): ${txSig}, tx age: ${
-								txAge / 1000
+							`Tx not found, (fillTxId: ${fillTxId}) (txType: ${txType}): ${txSig}, tx age: ${txAge / 1000
 							} s`
 						);
 						if (Math.abs(txAge) > TX_TIMEOUT_THRESHOLD_MS) {
@@ -1018,8 +1035,7 @@ export class FillerMultithreaded {
 						}
 					} else {
 						logger.info(
-							`Tx landed (fillTxId: ${fillTxId}) (txType: ${txType}): ${txSig}, tx age: ${
-								txAge / 1000
+							`Tx landed (fillTxId: ${fillTxId}) (txType: ${txType}): ${txSig}, tx age: ${txAge / 1000
 							} s`
 						);
 						for (const node of nodeFilled) {
@@ -1415,8 +1431,7 @@ export class FillerMultithreaded {
 			if (this.seenFillableOrders.has(getNodeToFillSignature(node))) {
 				logger.debug(
 					// @ts-ignore
-					`${logPrefix} already filled order (account: ${
-						node.node.userAccount
+					`${logPrefix} already filled order (account: ${node.node.userAccount
 					}, order ${node.node.order?.orderId.toString()}`
 				);
 				continue;
@@ -1528,7 +1543,7 @@ export class FillerMultithreaded {
 						'perp',
 						nodeToFill.node.order!.marketIndex!
 					)!.high *
-						this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+					this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
 				);
 
 				if (buildForBundle) {
@@ -1538,13 +1553,15 @@ export class FillerMultithreaded {
 				}
 
 				let removeLastIxPostSim = this.revertOnFailure;
+
 				const pythIxs: TransactionInstruction[] = [];
 				if (
-					this.pythPriceSubscriber &&
+					this.pythPriceSubscriber && this.pythLazerSubscriber &&
 					((makerInfos.length === 2 && !referrerInfo) || makerInfos.length < 2)
 				) {
 					const ixs = await this.getPythIxsFromNode(nodeToFill);
 					pythIxs.push(...ixs);
+					// eslint-disable-next-line @typescript-eslint/no-unused-vars
 					removeLastIxPostSim = false;
 				}
 
@@ -1557,7 +1574,8 @@ export class FillerMultithreaded {
 					fillTxId,
 					'multiMakerFill',
 					this.revertOnFailure ?? false,
-					removeLastIxPostSim ?? false
+					// removeLastIxPostSim ?? false
+					false
 				);
 
 				if (!isVariant(marketType, 'perp')) {
@@ -1588,6 +1606,9 @@ export class FillerMultithreaded {
 				const user = this.driftClient.getUser(this.subaccount);
 
 				if (this.revertOnFailure) {
+					logger.info(
+						`${logPrefix} Adding revert fill ix for user: ${user.userAccountPublicKey.toBase58()} ${await this.driftClient.getRevertFillIx(user.userAccountPublicKey)}`
+					);
 					fillIxs.push(
 						await this.driftClient.getRevertFillIx(user.userAccountPublicKey)
 					);
@@ -1608,12 +1629,12 @@ export class FillerMultithreaded {
 					logger.info(`tx too large, removing pyth ixs.
 							keys: ${ixsToUse.map((ix) => ix.keys.map((key) => key.pubkey.toString()))}
 							total number of maker positions: ${makerInfos.reduce(
-								(acc, maker) =>
-									acc +
-									(maker.data.makerUserAccount.perpPositions.length +
-										maker.data.makerUserAccount.spotPositions.length),
-								0
-							)}`);
+						(acc, maker) =>
+							acc +
+							(maker.data.makerUserAccount.perpPositions.length +
+								maker.data.makerUserAccount.spotPositions.length),
+						0
+					)}`);
 					if (isSignedMsg) {
 						signedMsgIxs = await getSignedMsgIxsFromNodeToFillInfo(
 							this.signedMsgOrderMessages,
@@ -1634,7 +1655,7 @@ export class FillerMultithreaded {
 						cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 						doSimulation: this.simulateTxForCUEstimate,
 						recentBlockhash: await this.getBlockhashForTx(),
-						removeLastIxPostSim,
+						removeLastIxPostSim: false
 					});
 				} catch (error) {
 					logger.error(`Error simulating tx: ${error}`);
@@ -1670,8 +1691,7 @@ export class FillerMultithreaded {
 			let attempt = 0;
 			while (txAccounts > MAX_ACCOUNTS_PER_TX && makerInfosToUse.length > 0) {
 				logger.info(
-					`${logPrefix} (fillTxId: ${fillTxId} attempt ${attempt++}) Too many accounts, remove 1 and try again (had ${
-						makerInfosToUse.length
+					`${logPrefix} (fillTxId: ${fillTxId} attempt ${attempt++}) Too many accounts, remove 1 and try again (had ${makerInfosToUse.length
 					} maker and ${txAccounts} accounts)`
 				);
 				makerInfosToUse = makerInfosToUse.slice(0, makerInfosToUse.length - 1);
@@ -1697,8 +1717,7 @@ export class FillerMultithreaded {
 			}).length;
 
 			logger.info(
-				`${logPrefix} tryFillMultiMakerPerpNodes estimated CUs: ${
-					simResult!.cuEstimate
+				`${logPrefix} tryFillMultiMakerPerpNodes estimated CUs: ${simResult!.cuEstimate
 				} (fillTxId: ${fillTxId})`
 			);
 
@@ -1727,8 +1746,7 @@ export class FillerMultithreaded {
 		} catch (e) {
 			if (e instanceof Error) {
 				logger.error(
-					`${logPrefix} Error filling multi maker perp node (fillTxId: ${fillTxId}): ${
-						e.stack ? e.stack : e.message
+					`${logPrefix} Error filling multi maker perp node (fillTxId: ${fillTxId}): ${e.stack ? e.stack : e.message
 					}`
 				);
 			}
@@ -1851,7 +1869,7 @@ export class FillerMultithreaded {
 		fillIxs.push(fillIx);
 
 		const user = this.driftClient.getUser(this.subaccount);
-		if (this.revertOnFailure && !isSignedMsg) {
+		if (this.revertOnFailure) {
 			fillIxs.push(
 				await this.driftClient.getRevertFillIx(user.userAccountPublicKey)
 			);
@@ -1883,7 +1901,7 @@ export class FillerMultithreaded {
 				signedMsgIxs = await getSignedMsgIxsFromNodeToFillInfo(
 					this.signedMsgOrderMessages,
 					this.driftClient,
-					[...computeBudgetIxs]
+					[...computeBudgetIxs],
 				);
 			}
 			ixsToUse = [...computeBudgetIxs, ...signedMsgIxs, ...fillIxs];
@@ -1899,7 +1917,7 @@ export class FillerMultithreaded {
 				cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 				doSimulation: this.simulateTxForCUEstimate,
 				recentBlockhash: await this.getBlockhashForTx(),
-				removeLastIxPostSim,
+				removeLastIxPostSim: false,
 			});
 		} catch (error) {
 			logger.error(`Error simulating tx: ${error}`);
@@ -1996,8 +2014,7 @@ export class FillerMultithreaded {
 
 					if (e.message.includes('too large:')) {
 						logger.error(
-							`${logPrefix}: :boxing_glove: Tx too large, estimated to be ${estTxSize} (fillId: ${fillTxId}). ${
-								e.message
+							`${logPrefix}: :boxing_glove: Tx too large, estimated to be ${estTxSize} (fillId: ${fillTxId}). ${e.message
 							}\n${JSON.stringify(accountMetas)}`
 						);
 						return;
@@ -2114,7 +2131,7 @@ export class FillerMultithreaded {
 							cuLimitMultiplier: SIM_CU_ESTIMATE_MULTIPLIER,
 							doSimulation: this.simulateTxForCUEstimate,
 							recentBlockhash: await this.getBlockhashForTx(),
-							removeLastIxPostSim: this.revertOnFailure,
+							removeLastIxPostSim: false,
 						});
 						this.simulateTxHistogram?.record(simResult.simTxDuration, {
 							type: 'settlePnl',
@@ -2328,9 +2345,9 @@ export class FillerMultithreaded {
 		// @ts-ignore
 		const takerUserAccount = nodeToFill.userAccountData?.data
 			? decodeUser(
-					// @ts-ignore
-					Buffer.from(nodeToFill.userAccountData.data)
-			  )
+				// @ts-ignore
+				Buffer.from(nodeToFill.userAccountData.data)
+			)
 			: (await this.userMap.mustGet(takerUserPubKey)).getUserAccount();
 
 		const authority = nodeToFill.authority
@@ -2463,10 +2480,8 @@ export class FillerMultithreaded {
 						true
 					);
 					logger.error(
-						`assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${
-							filledNode.node.order!.orderId
-						}; does not exist (filled by someone else); ${log}, expired: ${isExpired}, orderTs: ${
-							filledNode.node.order!.maxTs
+						`assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${filledNode.node.order!.orderId
+						}; does not exist (filled by someone else); ${log}, expired: ${isExpired}, orderTs: ${filledNode.node.order!.maxTs
 						}, now: ${Date.now() / 1000}`
 					);
 					if (isExpired) {
@@ -2495,8 +2510,7 @@ export class FillerMultithreaded {
 				const filledNode = nodesFilled[ixIdx];
 				const takerNodeSignature = filledNode.node.userAccount!;
 				logger.error(
-					`taker breach maint. margin, assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${
-						filledNode.node.order!.orderId
+					`taker breach maint. margin, assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${filledNode.node.order!.orderId
 					}; (throttling ${takerNodeSignature} and force cancelling orders); ${log}`
 				);
 				this.setThrottledNode(takerNodeSignature);
