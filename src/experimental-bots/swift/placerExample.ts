@@ -49,12 +49,14 @@ import axios from 'axios';
 import { logger } from '../../logger';
 import { sha256 } from '@noble/hashes/sha256';
 
+const MAX_ACCOUNTS_PER_TX = 64;
 const IGNORE_AUTHORITIES = ['CTh4Q6xooiaJMWCwKP5KLQ4j7X3NEJPf3Uq6rX8UsKSi'];
 
 export class SwiftPlacer {
 	interval: NodeJS.Timeout | null = null;
 	private ws: WebSocket | null = null;
 	private signedMsgUrl: string;
+	private baseDlobUrl: string;
 	private heartbeatTimeout: NodeJS.Timeout | null = null;
 	private priorityFeeSubscriber: PriorityFeeSubscriberMap;
 	private referrerMap: ReferrerMap;
@@ -70,13 +72,18 @@ export class SwiftPlacer {
 				? 'wss://swift.drift.trade/ws'
 				: 'wss://master.swift.drift.trade/ws';
 
+		this.baseDlobUrl =
+			runtimeSpec.driftEnv == 'mainnet-beta'
+				? 'https://dlob.drift.trade'
+				: 'https://master.dlob.drift.trade';
+
 		const perpMarketsToWatchForFees = [0, 1, 2, 3, 4, 5].map((x) => {
 			return { marketType: 'perp', marketIndex: x };
 		});
 
 		this.priorityFeeSubscriber = new PriorityFeeSubscriberMap({
 			driftMarkets: perpMarketsToWatchForFees,
-			driftPriorityFeeEndpoint: 'https://dlob.drift.trade',
+			driftPriorityFeeEndpoint: this.baseDlobUrl,
 		});
 
 		this.referrerMap = new ReferrerMap(driftClient, true);
@@ -237,7 +244,7 @@ export class SwiftPlacer {
 
 					const isOrderLong = isVariant(signedMsgOrderParams.direction, 'long');
 					const result = await axios.get(
-						`https://dlob.drift.trade/topMakers?marketType=perp&marketIndex=${
+						`${this.baseDlobUrl}/topMakers?marketType=perp&marketIndex=${
 							signedMsgOrderParams.marketIndex
 						}&side=${isOrderLong ? 'ask' : 'bid'}&limit=2`
 					);
@@ -321,7 +328,10 @@ export class SwiftPlacer {
 						true,
 						await this.driftClient.fetchAllLookupTableAccounts()
 					);
-					while (txSize > PACKET_DATA_SIZE) {
+					while (
+						txSize.bytes > PACKET_DATA_SIZE ||
+						txSize.accounts > MAX_ACCOUNTS_PER_TX
+					) {
 						if (makerInfos.length === 0) {
 							console.log('No more makers to try');
 							break;
@@ -349,7 +359,7 @@ export class SwiftPlacer {
 							connection: this.driftClient.connection,
 							payerPublicKey: this.driftClient.wallet.payer!.publicKey,
 							ixs: [...computeBudgetIxs, ...ixs, fillIx],
-							cuLimitMultiplier: 1.5,
+							cuLimitMultiplier: 2,
 							lookupTableAccounts:
 								await this.driftClient.fetchAllLookupTableAccounts(),
 							doSimulation: true,
@@ -360,7 +370,11 @@ export class SwiftPlacer {
 					}
 
 					if (resp.simError) {
-						logger.info(`${logPrefix}: ${resp.simTxLogs}`);
+						logger.info(
+							`${logPrefix}: ${JSON.stringify(resp.simError)}, ${
+								resp.simTxLogs
+							}`
+						);
 						return;
 					}
 

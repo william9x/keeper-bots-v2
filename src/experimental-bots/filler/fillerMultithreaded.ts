@@ -397,7 +397,12 @@ export class FillerMultithreaded {
 			this.pythLazerSubscriber = new PythLazerSubscriber(
 				this.globalConfig.lazerEndpoints,
 				this.globalConfig.lazerToken,
-				pythLazerIdsChunks,
+				pythLazerIdsChunks.map((ids) => {
+					return {
+						priceFeedIds: ids,
+						channel: 'fixed_rate@200ms',
+					};
+				}),
 				this.globalConfig.driftEnv
 			);
 		}
@@ -1624,7 +1629,7 @@ export class FillerMultithreaded {
 					ixsToUse,
 					true,
 					this.lookupTableAccounts
-				);
+				).bytes;
 				if (txSize > PACKET_DATA_SIZE && this.pythPriceSubscriber) {
 					logger.info(`tx too large, removing pyth ixs.
 							keys: ${ixsToUse.map((ix) => ix.keys.map((key) => key.pubkey.toString()))}
@@ -1729,6 +1734,22 @@ export class FillerMultithreaded {
 						.map((m) => `  ${m.data.maker.toBase58()}: ${m.slot}`)
 						.join('\n')}`
 				);
+				try {
+					if (
+						(simResult.simError as any)['InstructionError'] &&
+						(simResult.simError as any)['InstructionError'][1]['Custom'] < 6000
+					) {
+						logger.info(
+							`${logPrefix} (fillTxId: ${fillTxId}) sim logs: ${simResult.simTxLogs?.join(
+								'\n'
+							)}`
+						);
+					}
+				} catch (e) {
+					logger.error(
+						`${logPrefix} Error parsing sim logs (fillTxId: ${fillTxId}): ${e}`
+					);
+				}
 			} else {
 				if (this.hasEnoughSolToFill) {
 					this.sendFillTxAndParseLogs(
@@ -1885,7 +1906,7 @@ export class FillerMultithreaded {
 			ixsToUse,
 			true,
 			this.lookupTableAccounts
-		);
+		).bytes;
 		if (txSize > PACKET_DATA_SIZE) {
 			const lutAccounts = this.lookupTableAccounts
 				.map((lut) => lut.state.addresses.map((a) => a.toBase58()))

@@ -387,7 +387,12 @@ export class FillerBot extends TxThreaded implements Bot {
 			this.pythLazerSubscriber = new PythLazerSubscriber(
 				this.globalConfig.lazerEndpoints,
 				this.globalConfig.lazerToken,
-				pythLazerIdsChunks,
+				pythLazerIdsChunks.map((ids) => {
+					return {
+						priceFeedIds: ids,
+						channel: 'fixed_rate@200ms',
+					};
+				}),
 				this.globalConfig.driftEnv
 			);
 		}
@@ -1771,7 +1776,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				ixs.push(await this.driftClient.getRevertFillIx());
 			}
 
-			const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts);
+			const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts).bytes;
 			if (txSize > PACKET_DATA_SIZE) {
 				logger.info(`tx too large, removing pyth ixs.
 						keys: ${ixs.map((ix) => ix.keys.map((key) => key.pubkey.toString()))}
@@ -2027,7 +2032,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					ixs.push(await this.driftClient.getRevertFillIx());
 				}
 
-				const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts);
+				const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts).bytes;
 				if (txSize > PACKET_DATA_SIZE) {
 					logger.info(
 						`tx too large, removing pyth ixs. keys: ${ixs.map((ix) =>

@@ -128,12 +128,12 @@ function buildCrankIntervalToMarketIds(driftClient: DriftClient): {
 			marketType: 'perp',
 			marketIndex: perpMarket.marketIndex,
 		});
-		let crankPeriodMs = 20_000;
+		let crankPeriodMs = 30_000;
 		const isPreLaunch = false;
 		if (isOneOfVariant(perpMarket.contractTier, ['a', 'b'])) {
-			crankPeriodMs = 10_000;
+			crankPeriodMs = 30_000;
 		} else if (isVariant(perpMarket.amm.oracleSource, 'prelaunch')) {
-			crankPeriodMs = 15_000;
+			crankPeriodMs = 60_000;
 		}
 		logger.info(
 			`Perp market ${perpMarket.marketIndex} contractTier: ${getVariant(
@@ -221,7 +221,12 @@ export class MakerBidAskTwapCrank implements Bot {
 		this.pythLazerSubscriber = new PythLazerSubscriber(
 			this.globalConfig.lazerEndpoints,
 			this.globalConfig.lazerToken,
-			pythLazerIdsChunks,
+			pythLazerIdsChunks.map((ids) => {
+				return {
+					priceFeedIds: ids,
+					channel: 'fixed_rate@200ms',
+				};
+			}),
 			this.globalConfig.driftEnv
 		);
 	}
