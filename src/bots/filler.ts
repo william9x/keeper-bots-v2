@@ -374,23 +374,23 @@ export class FillerBot extends TxThreaded implements Bot {
 		this.signerPubkey = this.driftClient.wallet.publicKey.toBase58();
 
 		// Pyth lazer: remember to remove devnet guard
-		if (this.globalConfig.driftEnv == 'devnet') {
-			if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
-				throw new Error('Missing lazerEndpoint or lazerToken in global config');
-			}
 
-			const markets = PerpMarkets[this.globalConfig.driftEnv!].filter(
-				(market) => market.pythLazerId !== undefined
-			);
-			const pythLazerIds = markets.map((m) => m.pythLazerId!);
-			const pythLazerIdsChunks = chunks(pythLazerIds, 5);
-			this.pythLazerSubscriber = new PythLazerSubscriber(
-				this.globalConfig.lazerEndpoints,
-				this.globalConfig.lazerToken,
-				pythLazerIdsChunks,
-				this.globalConfig.driftEnv
-			);
+		if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
+			throw new Error('Missing lazerEndpoint or lazerToken in global config');
 		}
+
+		const markets = PerpMarkets[this.globalConfig.driftEnv!].filter(
+			(market) => market.pythLazerId !== undefined
+		);
+		const pythLazerIds = markets.map((m) => m.pythLazerId!);
+		const pythLazerIdsChunks = chunks(pythLazerIds, 5);
+		this.pythLazerSubscriber = new PythLazerSubscriber(
+			this.globalConfig.lazerEndpoints,
+			this.globalConfig.lazerToken,
+			pythLazerIdsChunks,
+			this.globalConfig.driftEnv
+		);
+
 	}
 
 	protected initializeMetrics(metricsPort?: number) {
@@ -535,8 +535,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		this.userStatsMap = new UserStatsMap(this.driftClient, userStatsLoader);
 
 		logger.info(
-			`Initialized userStatsMap: ${this.userStatsMap.size()}, took: ${
-				Date.now() - startInitUserStatsMap
+			`Initialized userStatsMap: ${this.userStatsMap.size()}, took: ${Date.now() - startInitUserStatsMap
 			} ms`
 		);
 
@@ -600,8 +599,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		}
 
 		logger.info(
-			`${this.name} Bot started! (websocket: ${
-				this.bulkAccountLoader === undefined
+			`${this.name} Bot started! (websocket: ${this.bulkAccountLoader === undefined
 			})`
 		);
 	}
@@ -1003,7 +1001,6 @@ export class FillerBot extends TxThreaded implements Bot {
 		marketType: MarketType;
 	}> {
 		const makerInfos: Array<DataAndSlot<MakerInfo>> = [];
-
 		if (nodeToFill.makerNodes.length > 0) {
 			let makerNodesMap: MakerNodeMap = new Map<string, DLOBNode[]>();
 			for (const makerNode of nodeToFill.makerNodes) {
@@ -1143,10 +1140,8 @@ export class FillerBot extends TxThreaded implements Bot {
 						true
 					);
 					logger.error(
-						`assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${
-							filledNode.node.order!.orderId
-						}; does not exist (filled by someone else); ${log}, expired: ${isExpired}, orderTs: ${
-							filledNode.node.order!.maxTs
+						`assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${filledNode.node.order!.orderId
+						}; does not exist (filled by someone else); ${log}, expired: ${isExpired}, orderTs: ${filledNode.node.order!.maxTs
 						}, now: ${Date.now() / 1000}`
 					);
 					if (isExpired) {
@@ -1203,10 +1198,8 @@ export class FillerBot extends TxThreaded implements Bot {
 								});
 							}
 							webhookMessage(
-								`[${
-									this.name
-								}]: :x: error forceCancelling user ${makerBreachedMaintenanceMargin} for maker breaching margin tx logs:\n${
-									e.stack ? e.stack : e.message
+								`[${this.name
+								}]: :x: error forceCancelling user ${makerBreachedMaintenanceMargin} for maker breaching margin tx logs:\n${e.stack ? e.stack : e.message
 								}`
 							);
 						}
@@ -1222,8 +1215,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				const filledNode = nodesFilled[ixIdx];
 				const takerNodeSignature = filledNode.node.userAccount!;
 				logger.error(
-					`taker breach maint. margin, assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${
-						filledNode.node.order!.orderId
+					`taker breach maint. margin, assoc node (ixIdx: ${ixIdx}): ${filledNode.node.userAccount!.toString()}, ${filledNode.node.order!.orderId
 					}; (throttling ${takerNodeSignature} and force cancelling orders); ${log}`
 				);
 				this.setThrottledNode(takerNodeSignature);
@@ -1248,8 +1240,7 @@ export class FillerBot extends TxThreaded implements Bot {
 						const userCanceling = filledNode.node.userAccount!.toString();
 						console.error(e);
 						logger.error(
-							`Failed to send ForceCancelOrder Tx for taker (${userCanceling} - ${
-								filledNode.node.order!.orderId
+							`Failed to send ForceCancelOrder Tx for taker (${userCanceling} - ${filledNode.node.order!.orderId
 							}) breach maint. margin (error above):`
 						);
 						const errorCode = getErrorCode(e);
@@ -1269,10 +1260,8 @@ export class FillerBot extends TxThreaded implements Bot {
 								});
 							}
 							webhookMessage(
-								`[${
-									this.name
-								}]: :x: error forceCancelling user ${userCanceling} for taker breaching maint. margin tx logs:\n${
-									e.stack ? e.stack : e.message
+								`[${this.name
+								}]: :x: error forceCancelling user ${userCanceling} for taker breaching maint. margin tx logs:\n${e.stack ? e.stack : e.message
 								}`
 							);
 						}
@@ -1496,7 +1485,7 @@ export class FillerBot extends TxThreaded implements Bot {
 						ComputeBudgetProgram.setComputeUnitPrice({
 							microLamports: Math.floor(
 								this.priorityFeeSubscriber.getCustomStrategyResult() *
-									this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
 							),
 						})
 					);
@@ -1558,8 +1547,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			let attempt = 0;
 			while (txAccounts > MAX_ACCOUNTS_PER_TX && makerInfosToUse.length > 0) {
 				logger.info(
-					`(fillTxId: ${fillTxId} attempt ${attempt++}) Too many accounts, remove 1 and try again (had ${
-						makerInfosToUse.length
+					`(fillTxId: ${fillTxId} attempt ${attempt++}) Too many accounts, remove 1 and try again (had ${makerInfosToUse.length
 					} maker and ${txAccounts} accounts)`
 				);
 				makerInfosToUse = makerInfosToUse.slice(0, makerInfosToUse.length - 1);
@@ -1620,8 +1608,7 @@ export class FillerBot extends TxThreaded implements Bot {
 		} catch (e) {
 			if (e instanceof Error) {
 				logger.error(
-					`Error filling multi maker perp node (fillTxId: ${fillTxId}): ${
-						e.stack ? e.stack : e.message
+					`Error filling multi maker perp node (fillTxId: ${fillTxId}): ${e.stack ? e.stack : e.message
 					}`
 				);
 			}
@@ -1683,7 +1670,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					ComputeBudgetProgram.setComputeUnitPrice({
 						microLamports: Math.floor(
 							this.priorityFeeSubscriber.getCustomStrategyResult() *
-								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+							this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
 						),
 					})
 				);
@@ -1776,24 +1763,23 @@ export class FillerBot extends TxThreaded implements Bot {
 				logger.info(`tx too large, removing pyth ixs.
 						keys: ${ixs.map((ix) => ix.keys.map((key) => key.pubkey.toString()))}
 						total number of maker positions: ${makerInfos.reduce(
-							(acc, maker) =>
-								acc +
-								(maker.data.makerUserAccount.perpPositions.length +
-									maker.data.makerUserAccount.spotPositions.length),
-							0
-						)}
-						total taker positions: ${
-							takerUser.perpPositions.length + takerUser.spotPositions.length
-						}
+					(acc, maker) =>
+						acc +
+						(maker.data.makerUserAccount.perpPositions.length +
+							maker.data.makerUserAccount.spotPositions.length),
+					0
+				)}
+						total taker positions: ${takerUser.perpPositions.length + takerUser.spotPositions.length
+					}
 						marketIndex: ${nodeToFill.node.order!.marketIndex}
 						taker has position in market: ${takerUser.perpPositions.some(
-							(pos) => pos.marketIndex === nodeToFill.node.order!.marketIndex
-						)}
+						(pos) => pos.marketIndex === nodeToFill.node.order!.marketIndex
+					)}
 						makers have position in market: ${makerInfos.some((maker) =>
-							maker.data.makerUserAccount.perpPositions.some(
-								(pos) => pos.marketIndex === nodeToFill.node.order!.marketIndex
-							)
-						)}
+						maker.data.makerUserAccount.perpPositions.some(
+							(pos) => pos.marketIndex === nodeToFill.node.order!.marketIndex
+						)
+					)}
 						`);
 				ixs = removePythIxs(ixs);
 			}
@@ -1926,10 +1912,8 @@ export class FillerBot extends TxThreaded implements Bot {
 				nodeToTrigger.node.userAccount.toString()
 			);
 			logger.info(
-				`Processing node: account=${nodeToTrigger.node.userAccount.toString()}, slot=${
-					user.slot
-				}, orderId=${nodeToTrigger.node.order.orderId.toString()}, numMakers=${
-					nodeToTrigger.makers?.length ?? 0
+				`Processing node: account=${nodeToTrigger.node.userAccount.toString()}, slot=${user.slot
+				}, orderId=${nodeToTrigger.node.order.orderId.toString()}, numMakers=${nodeToTrigger.makers?.length ?? 0
 				}`
 			);
 
@@ -1948,8 +1932,8 @@ export class FillerBot extends TxThreaded implements Bot {
 					ComputeBudgetProgram.setComputeUnitPrice({
 						microLamports: Math.floor(
 							this.priorityFeeSubscriber.getCustomStrategyResult() *
-								this.driftClient.txSender.getSuggestedPriorityFeeMultiplier() *
-								(this.fillerConfig.triggerPriorityFeeMultiplier ?? 1.0)
+							this.driftClient.txSender.getSuggestedPriorityFeeMultiplier() *
+							(this.fillerConfig.triggerPriorityFeeMultiplier ?? 1.0)
 						),
 					})
 				);
@@ -2198,7 +2182,7 @@ export class FillerBot extends TxThreaded implements Bot {
 								ComputeBudgetProgram.setComputeUnitPrice({
 									microLamports: Math.floor(
 										this.priorityFeeSubscriber.getCustomStrategyResult() *
-											this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
+										this.driftClient.txSender.getSuggestedPriorityFeeMultiplier()
 									),
 								})
 							);
@@ -2458,8 +2442,7 @@ export class FillerBot extends TxThreaded implements Bot {
 						if (e instanceof Error) {
 							console.error(e);
 							webhookMessage(
-								`[${this.name}]: :x: Failed to get fillable nodes for market ${
-									market.marketIndex
+								`[${this.name}]: :x: Failed to get fillable nodes for market ${market.marketIndex
 								}:\n${e.stack ? e.stack : e.message}`
 							);
 						}
@@ -2504,8 +2487,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			} else {
 				if (e instanceof Error) {
 					webhookMessage(
-						`[${this.name}]: :x: uncaught error:\n${
-							e.stack ? e.stack : e.message
+						`[${this.name}]: :x: uncaught error:\n${e.stack ? e.stack : e.message
 						}`
 					);
 				}
