@@ -374,7 +374,6 @@ export class FillerBot extends TxThreaded implements Bot {
 		this.signerPubkey = this.driftClient.wallet.publicKey.toBase58();
 
 		// Pyth lazer: remember to remove devnet guard
-
 		if (!this.globalConfig.lazerEndpoints || !this.globalConfig.lazerToken) {
 			throw new Error('Missing lazerEndpoint or lazerToken in global config');
 		}
@@ -385,12 +384,16 @@ export class FillerBot extends TxThreaded implements Bot {
 		const pythLazerIds = markets.map((m) => m.pythLazerId!);
 		const pythLazerIdsChunks = chunks(pythLazerIds, 5);
 		this.pythLazerSubscriber = new PythLazerSubscriber(
-			this.globalConfig.lazerEndpoints,
-			this.globalConfig.lazerToken,
-			pythLazerIdsChunks,
+			this.globalConfig.lazerEndpoints!,
+			this.globalConfig.lazerToken!,
+			pythLazerIdsChunks.map((ids) => {
+				return {
+					priceFeedIds: ids,
+					channel: 'real_time',
+				};
+			}),
 			this.globalConfig.driftEnv
 		);
-
 	}
 
 	protected initializeMetrics(metricsPort?: number) {
@@ -1339,15 +1342,18 @@ export class FillerBot extends TxThreaded implements Bot {
 			this.bundleSender?.strategy === 'jito-only' ||
 			this.bundleSender?.strategy === 'hybrid'
 		) {
-			const slotsUntilNextLeader = this.bundleSender?.slotsUntilNextLeader();
-			if (slotsUntilNextLeader !== undefined) {
-				this.bundleSender.sendTransactions(
-					[tx],
-					`(fillTxId: ${metadata})`,
-					txSig,
-					false
-				);
+			if (
+				this.globalConfig.onlySendDuringJitoLeader &&
+				this.bundleSender?.slotsUntilNextLeader() === undefined
+			) {
+				return;
 			}
+			this.bundleSender.sendTransactions(
+				[tx],
+				`(fillTxId: ${metadata})`,
+				txSig,
+				false
+			);
 		}
 	}
 
@@ -1758,7 +1764,7 @@ export class FillerBot extends TxThreaded implements Bot {
 				ixs.push(await this.driftClient.getRevertFillIx());
 			}
 
-			const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts);
+			const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts).bytes;
 			if (txSize > PACKET_DATA_SIZE) {
 				logger.info(`tx too large, removing pyth ixs.
 						keys: ${ixs.map((ix) => ix.keys.map((key) => key.pubkey.toString()))}
@@ -2011,7 +2017,7 @@ export class FillerBot extends TxThreaded implements Bot {
 					ixs.push(await this.driftClient.getRevertFillIx());
 				}
 
-				const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts);
+				const txSize = getSizeOfTransaction(ixs, true, this.lutAccounts).bytes;
 				if (txSize > PACKET_DATA_SIZE) {
 					logger.info(
 						`tx too large, removing pyth ixs. keys: ${ixs.map((ix) =>
