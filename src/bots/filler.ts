@@ -389,7 +389,7 @@ export class FillerBot extends TxThreaded implements Bot {
 			pythLazerIdsChunks.map((ids) => {
 				return {
 					priceFeedIds: ids,
-					channel: 'real_time',
+					channel: 'fixed_rate@200ms',
 				};
 			}),
 			this.globalConfig.driftEnv
